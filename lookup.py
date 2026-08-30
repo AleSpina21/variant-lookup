@@ -24,21 +24,38 @@ def get_variant_info(rsid):
     return response.json()
 
 def summarize(data):
-    """Pull out the useful bits from the raw API response."""
+    """Pull out the useful bits from the raw API response as a structured dict."""
     hits = data.get("hits", [])
     if not hits:
         logging.warning("No hits found in response.")
-        return "No results found."
+        return {"found": False, "gene": None, "interpretations": [], "allele_frequency": None}
 
     hit = hits[0]
     clinvar = hit.get("clinvar", {})
     gene = clinvar.get("gene", {}).get("symbol", "Unknown")
 
     rcvs = clinvar.get("rcv", [])
-    significances = {rcv.get("clinical_significance") for rcv in rcvs if rcv.get("clinical_significance")}
+    interpretations = []
+    for rcv in rcvs:
+        significance = rcv.get("clinical_significance")
+        if not significance:
+            continue
+        interpretations.append({
+            "condition": rcv.get("conditions", {}).get("name", "Not specified"),
+            "significance": significance,
+            "review_status": rcv.get("review_status", "Unknown")
+        })
 
-    logging.info("Parsed result — gene: %s, significances found: %d", gene, len(significances))
-    return f"Gene: {gene}\nClinical significance found: {', '.join(significances) if significances else 'None reported'}"
+    # Population allele frequency, from gnomAD exome data if available
+    allele_frequency = data.get("hits", [{}])[0].get("gnomad_exome", {}).get("af", {}).get("af")
+
+    logging.info("Parsed result — gene: %s, interpretations found: %d", gene, len(interpretations))
+    return {
+        "found": True,
+        "gene": gene,
+        "interpretations": interpretations,
+        "allele_frequency": allele_frequency
+    }
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
@@ -49,7 +66,16 @@ if __name__ == "__main__":
 
     try:
         result = get_variant_info(rsid)
-        print(summarize(result))
+        summary = summarize(result)
+        if summary["found"]:
+            print(f"Gene: {summary['gene']}")
+            if summary["allele_frequency"] is not None:
+                print(f"Population allele frequency: {summary['allele_frequency']}")
+            print("Interpretations:")
+            for interp in summary["interpretations"]:
+                print(f"  - {interp['significance']} (condition: {interp['condition']}, review: {interp['review_status']})")
+        else:
+            print("No results found.")
     except requests.exceptions.RequestException:
         print("Something went wrong fetching the data. Check app.log for details.")
         sys.exit(1)

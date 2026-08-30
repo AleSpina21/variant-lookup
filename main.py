@@ -11,5 +11,5 @@ def read_variant(rsid: str):
     except requests.exceptions.RequestException:
         raise HTTPException(status_code=502, detail="Failed to fetch data from upstream API")
 
-    result = summarize(data)
-    return {"rsid": rsid, "result": result}
+    summary = summarize(data)
+    return {"rsid": rsid, **summary}
