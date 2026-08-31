@@ -48,20 +48,20 @@ def test_lookup_variants_multiple():
 def test_search_by_gene():
     from unittest.mock import patch, Mock
 
-fake_response = Mock()
-fake_response.json.return_value = {
-    "hits": [
-        {"clinvar": {"rsid": "rs429358"}},
-        {"clinvar": {"rsid": "rs7412"}},
-        {"clinvar": {}}  # a hit with no rsid — should be skipped
-    ]
-}
-fake_response.raise_for_status.return_value = None
+    fake_response = Mock()
+    fake_response.json.return_value = {
+        "hits": [
+            {"clinvar": {"rsid": "rs429358"}},
+            {"clinvar": {"rsid": "rs7412"}},
+            {"clinvar": {}}  # a hit with no rsid — should be skipped
+        ]
+    }
+    fake_response.raise_for_status.return_value = None
 
-with patch("lookup.requests.get", return_value=fake_response):
-    rsids = search_by_gene("APOE")
+    with patch("lookup.requests.get", return_value=fake_response):
+        rsids = search_by_gene("APOE")
 
-assert rsids == ["rs429358", "rs7412"]
+    assert rsids == ["rs429358", "rs7412"]
 
 def test_summarize_with_single_rcv_as_dict():
     """Some variants return 'rcv' as a single dict instead of a list — must not crash."""
