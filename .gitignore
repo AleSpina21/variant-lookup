@@ -1,4 +1,6 @@
 venv/
 app.log
+variant_summary.txt.gz
+variant_summary.txt
 __pycache__/
 *.pyc
