@@ -1,4 +1,6 @@
-from lookup import get_variant_info, summarize, lookup_variants, search_by_gene
+import pandas as pd
+from analysis import results_to_dataframe, add_confidence_score, significance_distribution, frequency_by_significance
+from lookup import get_variant_info, summarize, lookup_variants, search_by_gene, results_to_csv
 
 def test_summarize_with_valid_data():
     fake_data = {
@@ -78,3 +80,55 @@ def test_summarize_with_single_rcv_as_dict():
     result = summarize(fake_data)
     assert result["found"] is True
     assert result["interpretations"][0]["significance"] == "Pathogenic"
+
+def test_results_to_csv():
+    results = [
+        {
+            "rsid": "rs429358",
+            "found": True,
+            "gene": "APOE",
+            "allele_frequency": 0.138,
+            "interpretations": [
+                {"condition": "Alzheimer disease", "significance": "Pathogenic", "review_status": "criteria provided"}
+            ]
+        },
+        {
+            "rsid": "rs000000",
+            "found": False,
+            "gene": None,
+            "allele_frequency": None,
+            "interpretations": []
+        }
+    ]
+    csv_text = results_to_csv(results)
+    assert "rs429358" in csv_text
+    assert "Pathogenic" in csv_text
+    assert "rs000000" in csv_text
+
+def sample_results():
+    return [
+        {
+            "rsid": "rs1", "found": True, "gene": "APOE", "allele_frequency": 0.15,
+            "interpretations": [{"condition": "Alzheimer disease", "significance": "Pathogenic", "review_status": "criteria provided, single submitter"}]
+        },
+        {
+            "rsid": "rs2", "found": True, "gene": "APOE", "allele_frequency": 0.40,
+            "interpretations": [{"condition": "not specified", "significance": "Benign", "review_status": "reviewed by expert panel"}]
+        }
+    ]
+
+def test_results_to_dataframe():
+    df = results_to_dataframe(sample_results())
+    assert len(df) == 2
+    assert "gene" in df.columns
+
+def test_add_confidence_score():
+    df = results_to_dataframe(sample_results())
+    df = add_confidence_score(df)
+    assert df.loc[df["significance"] == "Benign", "confidence_stars"].iloc[0] == 3
+
+def test_frequency_by_significance():
+    df = results_to_dataframe(sample_results())
+    result = frequency_by_significance(df)
+    # Pathogenic variant is rarer than the Benign one in this sample data
+    assert result["Pathogenic"] < result["Benign"]

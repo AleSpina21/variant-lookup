@@ -1,6 +1,8 @@
 import requests
 import sys
 import logging
+import csv
+import io
 
 
 # Configure logging: write INFO and above to app.log with timestamp, level, and message
@@ -188,6 +190,40 @@ def search_by_gene(gene_symbol, max_results=10):
 
     logging.info("Found %d rsIDs for gene %s", len(rsids), gene_symbol)
     return rsids
+
+def results_to_csv(results):
+    """Convert a list of result dicts (from lookup_variants) into CSV text.
+
+    Each interpretation becomes its own row, since a variant can have multiple
+    conditions/significances — flattening to one row per variant would lose data.
+    """
+    output = io.StringIO()  # an in-memory text buffer, behaves like a file
+    writer = csv.writer(output)
+
+    # Header row
+    writer.writerow(["rsid", "gene", "allele_frequency", "condition", "significance", "review_status"])
+
+    for r in results:
+        if not r["found"]:
+            # Still record that this rsID was looked up, even with no data found
+            writer.writerow([r["rsid"], "", "", "", r.get("error", "No results found"), ""])
+            continue
+
+        if not r["interpretations"]:
+            # Found the variant, but no clinical interpretations attached
+            writer.writerow([r["rsid"], r["gene"], r["allele_frequency"], "", "", ""])
+        else:
+            for interp in r["interpretations"]:
+                writer.writerow([
+                    r["rsid"],
+                    r["gene"],
+                    r["allele_frequency"],
+                    interp["condition"],
+                    interp["significance"],
+                    interp["review_status"]
+                ])
+
+    return output.getvalue()  # the full CSV content, as a string
 
 
 if __name__ == "__main__":
