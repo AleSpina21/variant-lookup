@@ -1,5 +1,6 @@
 To reactivate the virtual environment, cd into the folder of the project and then: venv\Scripts\Activate.ps1
 
+To activate the project: streamlit run app.py
 
 Overview
 --------
