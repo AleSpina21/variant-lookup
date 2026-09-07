@@ -3,6 +3,8 @@ import sys
 import logging
 import csv
 import io
+import vcf  # from pyvcf3
+
 
 
 # Configure logging: write INFO and above to app.log with timestamp, level, and message
@@ -265,3 +267,15 @@ if __name__ == "__main__":
         else:
             # No hits were found for this rsID (valid request, just nothing in the databases)
             print("No results found.")
+
+def extract_rsids_from_vcf(file_obj):
+    """Parse a VCF file and extract rsIDs from variants that have one."""
+    reader = vcf.Reader(file_obj)
+    rsids = []
+
+    for record in reader:
+        if record.ID and record.ID != ".":
+            rsids.append(record.ID)
+
+    logging.info("Extracted %d rsIDs from VCF file", len(rsids))
+    return rsids
