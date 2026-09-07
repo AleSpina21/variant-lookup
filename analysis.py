@@ -26,10 +26,12 @@ REVIEW_STATUS_STARS = {
     "practice guideline": 4,
     "reviewed by expert panel": 3,
     "criteria provided, multiple submitters, no conflicts": 2,
-    "criteria provided, conflicting interpretations": 1,
+    "criteria provided, conflicting classifications": 1,   # was "interpretations" — corrected
     "criteria provided, single submitter": 1,
     "no assertion criteria provided": 0,
     "no assertion provided": 0,
+    "no classification for the single variant": 0,
+    "no classifications from unflagged records": 0,
 }
 
 def add_confidence_score(df):

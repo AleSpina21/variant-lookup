@@ -3,6 +3,7 @@ import io
 from lookup import lookup_variants, search_by_gene, results_to_csv, extract_rsids_from_vcf
 from analysis import results_to_dataframe, add_confidence_score, significance_distribution, frequency_by_significance
 from gene_condition_analysis import load_clinvar_data, explode_conditions, gene_condition_significance, top_genes_for_condition
+from reclassification_analysis import add_review_age, flag_due_for_review, gene_reclassification_summary
 
 
 @st.cache_data
@@ -13,9 +14,19 @@ def get_ranked_gene_conditions():
     ranked = gene_condition_significance(exploded)
     return ranked
 
+@st.cache_data
+def get_reclassification_summary():
+    from reclassification_analysis import add_review_age, flag_due_for_review, gene_reclassification_summary
+    df = load_clinvar_data("variant_summary.txt.gz")
+    df = add_review_age(df)
+    df = flag_due_for_review(df)
+    return gene_reclassification_summary(df)
+
+
 st.title("Variant Lookup Tool")
 
-search_mode = st.radio("Search by:", ["rsID", "Gene symbol", "VCF file upload", "Condition analysis"])
+search_mode = st.radio("Search by:", ["rsID", "Gene symbol", "VCF file upload", "Condition analysis", "Reclassification risk"])
+
 
 if search_mode == "rsID":
     rsid_input = st.text_area("Enter one or more rsIDs (one per line)", placeholder="rs429358\nrs7412")
@@ -135,5 +146,28 @@ elif search_mode == "Condition analysis":
 
             st.subheader("Full results")
             st.dataframe(matches[["PhenotypeList", "GeneSymbol", "total_variants", "pathogenic_variants", "pathogenic_fraction"]])
+
+elif search_mode == "Reclassification risk":
+    st.header("Genes Most Likely Due for Reclassification Review")
+    st.caption("Flags variants that are either currently conflicting, or evaluated long ago with weak review support.")
+
+    min_variants = st.slider("Minimum total variants for a gene to be included", 5, 100, 20)
+
+    with st.spinner("Loading ClinVar data (first run may take a minute)..."):
+        summary = get_reclassification_summary()
+
+    filtered = summary[summary["total_variants"] >= min_variants]
+
+    st.subheader("Top genes by number of variants due for review")
+    top = filtered.sort_values("due_for_review", ascending=False).head(15)
+    st.bar_chart(top.set_index("GeneSymbol")["due_for_review"])
+
+    st.subheader("Top genes by fraction due for review")
+    top_frac = filtered.sort_values("review_fraction", ascending=False).head(15)
+    st.bar_chart(top_frac.set_index("GeneSymbol")["review_fraction"])
+
+    st.subheader("Full results")
+    st.dataframe(filtered)
+
 
 
